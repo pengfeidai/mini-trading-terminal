@@ -7,7 +7,7 @@ import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
 import { useBalance } from "@/hooks/use-balance";
 import { useTrade } from "@/hooks/use-trade";
 import { confirmTransaction, createConnection, createKeypair, sendTransaction, signTransaction } from "@/lib/solana";
-import { RAYDIUM_CPMM_PROGRAM_ID } from "@/lib/raydium";
+import { RAYDIUM_CPMM_PROGRAM_ID } from "@/lib/raydiumCpmm";
 import { NATIVE_MINT } from "@solana/spl-token";
 import { PairWithMetadata } from "@/lib/codex";
 

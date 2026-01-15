@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { NATIVE_MINT } from "@solana/spl-token";
 import Decimal from "decimal.js";
-import RaydiumCPMM from "@/lib/raydium";
+import RaydiumCPMM from "@/lib/raydiumCpmm";
 import { bn } from "@/lib/utils";
 import { createConnection } from "@/lib/solana";
 

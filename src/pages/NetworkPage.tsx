@@ -3,7 +3,7 @@ import { TokenRankingAttribute, RankingDirection, TokenFilterResult } from "@cod
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
 import { VALID_EXCHANGES } from "@/lib/codex";
-import { RAYDIUM_CPMM_PROGRAM_ID } from "@/lib/raydium";
+import { RAYDIUM_CPMM_PROGRAM_ID } from "@/lib/raydiumCpmm";
 
 // WSOL 地址
 const WSOL_ADDRESS = "So11111111111111111111111111111111111111112";
