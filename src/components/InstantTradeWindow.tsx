@@ -15,15 +15,16 @@ import {
 } from "@/lib/solana";
 import { NATIVE_MINT } from "@solana/spl-token";
 import { DraggableWindow } from "@/components/ui/draggable-window";
+import { Input } from "@/components/ui/input";
+import { TradeSettingsDialog } from "@/components/trade/TradeSettingsDialog";
 import {
-  TradePresetTabs,
-  TradeSection,
-  SlippageMevSettings,
-  TradeDivider,
-  TradeLoadingState,
-  TradeSettingsDialog,
-} from "@/components/trade";
-import { PencilIcon, RefreshCwIcon, XIcon } from "lucide-react";
+  PencilIcon,
+  RefreshCwIcon,
+  XIcon,
+  SettingsIcon,
+  CopyIcon,
+} from "lucide-react";
+import { PresetTab, PRESET_TABS } from "@/types/trade";
 
 interface InstantTradeWindowProps {
   open: boolean;
@@ -170,7 +171,14 @@ export const InstantTradeWindow: React.FC<InstantTradeWindowProps> = ({
         setIsSubmitting(false);
       }
     },
-    [createTransaction, keypair, connection, refreshBalance, currentConfig.slippage, isSubmitting]
+    [
+      createTransaction,
+      keypair,
+      connection,
+      refreshBalance,
+      currentConfig.slippage,
+      isSubmitting,
+    ]
   );
 
   // Handle close
@@ -179,29 +187,104 @@ export const InstantTradeWindow: React.FC<InstantTradeWindowProps> = ({
     onClose();
   }, [onClose, setIsEditMode]);
 
-  // Handle edit buy preset change
-  const handleEditBuyChange = useCallback(
-    (index: number, value: string) => {
-      setEditBuyPresets((prev) => {
-        const newPresets = [...prev];
-        newPresets[index] = value;
-        return newPresets;
-      });
-    },
-    [setEditBuyPresets]
-  );
+  // Render trade section (Buy or Sell)
+  const renderTradeSection = (
+    type: "buy" | "sell",
+    presets: number[],
+    balance: number,
+    editValues: string[],
+    onEditChange: (index: number, value: string) => void
+  ) => {
+    const isBuy = type === "buy";
 
-  // Handle edit sell preset change
-  const handleEditSellChange = useCallback(
-    (index: number, value: string) => {
-      setEditSellPresets((prev) => {
-        const newPresets = [...prev];
-        newPresets[index] = value;
-        return newPresets;
-      });
-    },
-    [setEditSellPresets]
-  );
+    return (
+      <div className="space-y-2.5">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-white capitalize">
+            {type}
+          </span>
+          <button
+            onClick={handleCopyAddress}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors"
+            title="Copy wallet address"
+          >
+            <CopyIcon className="w-3 h-3" />
+            <span>{isBuy ? balance.toFixed(2) : balance.toLocaleString()}</span>
+            <span className={isBuy ? "text-cyan-400" : "text-purple-400"}>
+              {isBuy ? "◆" : "◈"}
+            </span>
+          </button>
+        </div>
+
+        {/* Preset Buttons or Edit Inputs */}
+        {isEditMode ? (
+          <div className="grid grid-cols-4 gap-2">
+            {editValues.map((value, index) => (
+              <Input
+                key={`edit-${type}-${index}`}
+                type="number"
+                value={value}
+                onChange={(e) => onEditChange(index, e.target.value)}
+                className={cn(
+                  "h-10 text-center text-sm",
+                  isBuy
+                    ? "bg-green-500/10 border-green-500/30 text-green-400"
+                    : "bg-muted/30 border-border text-white"
+                )}
+                placeholder="0"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-2">
+            {presets.map((preset) => {
+              const isDisabled =
+                loading ||
+                isSubmitting ||
+                (isBuy ? balance < preset : balance <= 0);
+
+              return (
+                <button
+                  key={`${type}-${preset}`}
+                  onClick={() => handleTrade(type, preset)}
+                  disabled={isDisabled}
+                  className={cn(
+                    "py-2.5 px-2 rounded-lg text-sm font-medium transition-all active:scale-95",
+                    "disabled:opacity-40 disabled:cursor-not-allowed",
+                    isBuy
+                      ? "bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 hover:border-green-500/50"
+                      : "bg-muted/30 border border-border text-white hover:bg-muted/50 hover:border-muted-foreground/50"
+                  )}
+                  title={
+                    !isBuy
+                      ? `Sell ${preset}% of ${token.symbol || "token"} balance`
+                      : undefined
+                  }
+                >
+                  {isBuy ? preset : `${preset}%`}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* USD Estimates for Sell */}
+        {!isBuy && !isEditMode && (
+          <div className="grid grid-cols-4 gap-2 mt-1">
+            {presets.map((preset) => (
+              <div
+                key={`usd-${preset}`}
+                className="text-center text-xs text-muted-foreground"
+              >
+                ${(((balance * preset) / 100) * 0).toFixed(0)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <DraggableWindow
@@ -218,14 +301,32 @@ export const InstantTradeWindow: React.FC<InstantTradeWindowProps> = ({
     >
       {cpmmPoolInfo ? (
         <div className="flex flex-col h-full -m-5">
-          {/* Custom Header with Tabs */}
+          {/* Header with Tabs */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
             {/* Preset Tabs */}
-            <TradePresetTabs
-              activePreset={activePreset}
-              onPresetChange={setActivePreset}
-              onSettingsClick={() => setIsSettingsOpen(true)}
-            />
+            <div className="flex items-center gap-1">
+              {PRESET_TABS.map((preset: PresetTab) => (
+                <button
+                  key={preset}
+                  onClick={() => setActivePreset(preset)}
+                  className={cn(
+                    "px-3 py-1.5 text-sm font-medium rounded-lg transition-all",
+                    activePreset === preset
+                      ? "bg-white/10 text-white"
+                      : "text-muted-foreground hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  {preset}
+                </button>
+              ))}
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-1.5 text-muted-foreground hover:text-white transition-colors ml-1"
+                title="Settings"
+              >
+                <SettingsIcon className="w-4 h-4" />
+              </button>
+            </div>
 
             {/* Action Buttons */}
             <div className="flex items-center gap-1">
@@ -269,46 +370,87 @@ export const InstantTradeWindow: React.FC<InstantTradeWindowProps> = ({
           {/* Content */}
           <div className="flex-1 p-4 space-y-4 overflow-auto">
             {/* Buy Section */}
-            <TradeSection
-              type="buy"
-              presets={currentConfig.buyPresets}
-              balance={solanaBalance}
-              isEditMode={isEditMode}
-              editValues={editBuyPresets}
-              onEditChange={handleEditBuyChange}
-              onTrade={(amount) => handleTrade("buy", amount)}
-              onCopyAddress={handleCopyAddress}
-              disabled={loading}
-              isSubmitting={isSubmitting}
-            />
+            {renderTradeSection(
+              "buy",
+              currentConfig.buyPresets,
+              solanaBalance,
+              editBuyPresets,
+              (index, value) => {
+                setEditBuyPresets((prev) => {
+                  const newPresets = [...prev];
+                  newPresets[index] = value;
+                  return newPresets;
+                });
+              }
+            )}
 
             {/* Slippage & MEV Settings */}
-            <SlippageMevSettings
-              config={currentConfig}
-              onToggleSlippage={handleToggleSlippage}
-              onToggleMev={handleToggleMev}
-            />
+            <div className="flex items-center gap-3 text-xs">
+              <button
+                onClick={handleToggleSlippage}
+                className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors"
+              >
+                <span className="text-muted-foreground">※</span>
+                <span className="text-white font-medium">
+                  {currentConfig.slippage === "auto"
+                    ? "AUTO"
+                    : `${currentConfig.slippage}%`}
+                </span>
+              </button>
+              <button
+                onClick={handleToggleMev}
+                className={cn(
+                  "flex items-center gap-1.5 px-2 py-1 rounded transition-colors",
+                  currentConfig.mevProtection
+                    ? "bg-cyan-500/20 text-cyan-400"
+                    : "bg-white/5 text-muted-foreground"
+                )}
+              >
+                <span>◇</span>
+                <span className="font-medium">
+                  MEV {currentConfig.mevProtection ? "ON" : "OFF"}
+                </span>
+              </button>
+            </div>
 
             {/* Divider */}
-            <TradeDivider />
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border/30" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-background px-3 text-xs text-muted-foreground">
+                  OR
+                </span>
+              </div>
+            </div>
 
             {/* Sell Section */}
-            <TradeSection
-              type="sell"
-              presets={currentConfig.sellPresets}
-              balance={tokenBalance}
-              tokenSymbol={token.symbol || undefined}
-              isEditMode={isEditMode}
-              editValues={editSellPresets}
-              onEditChange={handleEditSellChange}
-              onTrade={(amount) => handleTrade("sell", amount)}
-              onCopyAddress={handleCopyAddress}
-              disabled={loading}
-              isSubmitting={isSubmitting}
-            />
+            {renderTradeSection(
+              "sell",
+              currentConfig.sellPresets,
+              tokenBalance,
+              editSellPresets,
+              (index, value) => {
+                setEditSellPresets((prev) => {
+                  const newPresets = [...prev];
+                  newPresets[index] = value;
+                  return newPresets;
+                });
+              }
+            )}
 
             {/* Loading State */}
-            {isSubmitting && <TradeLoadingState />}
+            {isSubmitting && (
+              <div className="flex items-center justify-center gap-2 py-3 bg-white/5 rounded-lg">
+                <div className="h-2 w-2 bg-cyan-400 rounded-full animate-pulse" />
+                <div className="h-2 w-2 bg-cyan-400 rounded-full animate-pulse [animation-delay:75ms]" />
+                <div className="h-2 w-2 bg-cyan-400 rounded-full animate-pulse [animation-delay:150ms]" />
+                <span className="text-sm text-muted-foreground ml-2">
+                  Processing...
+                </span>
+              </div>
+            )}
           </div>
         </div>
       ) : (
