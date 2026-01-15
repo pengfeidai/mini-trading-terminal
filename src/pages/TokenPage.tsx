@@ -3,10 +3,27 @@ import { Link, useParams } from "react-router-dom";
 import { useEffect, useState, Suspense } from "react";
 import { TokenChart, ChartDataPoint } from "@/components/TokenChart";
 import { TradingPanel } from "@/components/TradingPanel";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
-import { listPairsWithMetadataForToken, PairWithMetadata, VALID_EXCHANGES } from "@/lib/codex";
+import {
+  listPairsWithMetadataForToken,
+  PairWithMetadata,
+  VALID_EXCHANGES,
+} from "@/lib/codex";
 
 type TokenEvent = {
   id: string;
@@ -18,8 +35,11 @@ type TokenEvent = {
 };
 
 export default function TokenPage() {
-  const { networkId, tokenId } = useParams<{ networkId: string; tokenId: string }>();
-  const networkIdNum = parseInt(networkId || '', 10);
+  const { networkId, tokenId } = useParams<{
+    networkId: string;
+    tokenId: string;
+  }>();
+  const networkIdNum = parseInt(networkId || "", 10);
 
   const [details, setDetails] = useState<EnhancedToken | undefined>(undefined);
   const [pairs, setPairs] = useState<PairWithMetadata[]>([]);
@@ -40,7 +60,7 @@ export default function TokenPage() {
       if (!apiKey) {
         console.warn("VITE_CODEX_API_KEY not set.");
       }
-      const codexClient = new Codex(apiKey || '');
+      const codexClient = new Codex(apiKey || "");
 
       const now = Math.floor(Date.now() / 1000);
       const oneDayAgo = now - 1 * 24 * 60 * 60;
@@ -48,14 +68,19 @@ export default function TokenPage() {
 
       try {
         const results = await Promise.allSettled([
-          codexClient.queries.token({ input: { networkId: networkIdNum, address: tokenId } }),
+          codexClient.queries.token({
+            input: { networkId: networkIdNum, address: tokenId },
+          }),
           codexClient.queries.getBars({
             symbol: symbolId,
             from: oneDayAgo,
             to: now,
-            resolution: '30'
+            resolution: "30",
           }),
-          codexClient.queries.getTokenEvents({ query: { networkId: networkIdNum, address: tokenId }, limit: 50 }),
+          codexClient.queries.getTokenEvents({
+            query: { networkId: networkIdNum, address: tokenId },
+            limit: 50,
+          }),
           listPairsWithMetadataForToken(tokenId, networkIdNum, 100), // 使用新的 API
         ]);
 
@@ -64,10 +89,10 @@ export default function TokenPage() {
         const eventsResult = results[2];
         const pairsResult = results[3];
 
-        if (detailsResult.status === 'fulfilled') {
+        if (detailsResult.status === "fulfilled") {
           const tokenData = detailsResult.value.token;
           setDetails(tokenData);
-          
+
           // 打印详细的 exchanges 信息
           console.log("=== Token Exchanges Information ===");
           console.log("Token:", tokenData?.name, `(${tokenData?.symbol})`);
@@ -75,7 +100,7 @@ export default function TokenPage() {
           console.log("Network ID:", tokenData?.networkId);
           console.log("Exchanges Count:", tokenData?.exchanges?.length || 0);
           console.log("Exchanges:", tokenData?.exchanges);
-          
+
           if (tokenData?.exchanges && tokenData.exchanges.length > 0) {
             console.log("\n--- Detailed Exchange List ---");
             tokenData.exchanges.forEach((exchange, index) => {
@@ -92,7 +117,7 @@ export default function TokenPage() {
           console.log("================================");
         }
 
-        if (barsResult.status === 'fulfilled') {
+        if (barsResult.status === "fulfilled") {
           const b = barsResult.value.getBars;
           if (b?.t && b?.c) {
             const chartData = b.t.map((time: number, index: number) => ({
@@ -106,19 +131,25 @@ export default function TokenPage() {
           }
         }
 
-        if (eventsResult.status === 'fulfilled' && eventsResult.value.getTokenEvents?.items) {
+        if (
+          eventsResult.status === "fulfilled" &&
+          eventsResult.value.getTokenEvents?.items
+        ) {
           const tokenEvents = eventsResult.value.getTokenEvents.items
-            .filter(ev => ev != null)
+            .filter((ev) => ev != null)
             .map((ev, index) => {
               const decimals = details?.decimals ?? 18;
-              const swapValue = parseFloat(ev.token0SwapValueUsd || '0');
-              const amount0 = parseFloat(ev.data?.amount0 || '0');
-              const calculatedAmountUsd = swapValue * Math.abs(amount0 / (10 ** decimals));
+              const swapValue = parseFloat(ev.token0SwapValueUsd || "0");
+              const amount0 = parseFloat(ev.data?.amount0 || "0");
+              const calculatedAmountUsd =
+                swapValue * Math.abs(amount0 / 10 ** decimals);
 
               return {
                 id: ev.id,
                 timestamp: ev.timestamp,
-                uniqueId: `${ev.id}-${ev.blockNumber || 0}-${ev.transactionIndex || 0}-${ev.logIndex || 0}-${index}`,
+                uniqueId: `${ev.id}-${ev.blockNumber || 0}-${
+                  ev.transactionIndex || 0
+                }-${ev.logIndex || 0}-${index}`,
                 transactionHash: ev.transactionHash,
                 eventDisplayType: ev.eventDisplayType,
                 amountUsd: calculatedAmountUsd,
@@ -127,19 +158,23 @@ export default function TokenPage() {
           setEvents(tokenEvents);
         }
 
-        if (pairsResult.status === 'fulfilled') {
+        if (pairsResult.status === "fulfilled") {
           // listPairsWithMetadataForToken 直接返回 PairWithMetadata[]
           const allPairs = pairsResult.value as PairWithMetadata[];
-          
+
           // 过滤有效交易所
-          const validPairs = allPairs.filter(pair => 
-            pair?.exchange?.name && VALID_EXCHANGES.includes(pair.exchange.name)
+          const validPairs = allPairs.filter(
+            (pair) =>
+              pair?.exchange?.name &&
+              VALID_EXCHANGES.includes(pair.exchange.name)
           );
-          
+
           setPairs(validPairs);
-          
+
           // 打印 pairs 信息，用于调试
-          console.log("=== Pairs Information (listPairsWithMetadataForToken) ===");
+          console.log(
+            "=== Pairs Information (listPairsWithMetadataForToken) ==="
+          );
           console.log("Total pairs:", allPairs.length);
           console.log("Valid pairs (filtered):", validPairs.length);
           validPairs.forEach((pair, index) => {
@@ -178,13 +213,15 @@ export default function TokenPage() {
     return (
       <main className="flex min-h-screen flex-col items-center p-12 md:p-24">
         <h1 className="text-2xl font-bold text-destructive">{error}</h1>
-        <Link to="/" className="mt-4 hover:underline">Go back home</Link>
+        <Link to="/" className="mt-4 hover:underline">
+          Go back home
+        </Link>
       </main>
     );
   }
 
   const tokenName = details?.name || tokenId;
-  const tokenSymbol = details?.symbol ? `(${details.symbol})` : '';
+  const tokenSymbol = details?.symbol ? `(${details.symbol})` : "";
 
   return (
     <main className="flex min-h-screen flex-col items-center p-6 md:p-12 space-y-6">
@@ -192,15 +229,34 @@ export default function TokenPage() {
         <h1 className="text-2xl md:text-3xl font-bold truncate pr-4">
           {tokenName} {tokenSymbol}
         </h1>
-        <Link to={`/networks/${networkId}`} className="text-sm hover:underline whitespace-nowrap">
+        <Link
+          to={`/networks/${networkId}`}
+          className="text-sm hover:underline whitespace-nowrap"
+        >
           &lt; Back to Network
         </Link>
       </div>
 
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Suspense fallback={<Card><CardHeader><CardTitle>Price Chart</CardTitle></CardHeader><CardContent><p>Loading chart...</p></CardContent></Card>}>
-            <TokenChart data={bars} title={`${tokenSymbol || 'Token'} Price Chart`} />
+          <Suspense
+            fallback={
+              <Card>
+                <CardHeader>
+                  <CardTitle>Price Chart</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Loading chart...</p>
+                </CardContent>
+              </Card>
+            }
+          >
+            <TokenChart
+              data={bars}
+              title={`${tokenSymbol || "Token"} Price Chart`}
+              token={details}
+              pairs={pairs}
+            />
           </Suspense>
 
           <Card>
@@ -221,49 +277,56 @@ export default function TokenPage() {
                   <TableBody>
                     {events.map((event) => (
                       <TableRow key={event.uniqueId || event.id}>
-                        <TableCell>{event.eventDisplayType || 'N/A'}</TableCell>
-                        <TableCell>{new Date(event.timestamp * 1000).toLocaleString()}</TableCell>
-                        <TableCell>{event.amountUsd ? `$${event.amountUsd.toFixed(2)}` : 'N/A'}</TableCell>
+                        <TableCell>{event.eventDisplayType || "N/A"}</TableCell>
+                        <TableCell>
+                          {new Date(event.timestamp * 1000).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          {event.amountUsd
+                            ? `$${event.amountUsd.toFixed(2)}`
+                            : "N/A"}
+                        </TableCell>
                         <TableCell className="truncate">
-                          <span title={event.transactionHash}>{event.transactionHash.substring(0, 8)}...</span>
+                          <span title={event.transactionHash}>
+                            {event.transactionHash.substring(0, 8)}...
+                          </span>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-muted-foreground">No recent transaction data available.</p>
+                <p className="text-muted-foreground">
+                  No recent transaction data available.
+                </p>
               )}
             </CardContent>
           </Card>
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-          {details && (
-            <TradingPanel
-              token={details}
-              pairs={pairs}
-            />
-          )}
+          {details && <TradingPanel token={details} pairs={pairs} />}
 
           <Card>
             <CardHeader className="flex flex-row items-center space-x-4">
               {details?.info?.imageThumbUrl ? (
                 <img
                   src={details.info.imageThumbUrl}
-                  alt={`${details.name || 'Token'} icon`}
+                  alt={`${details.name || "Token"} icon`}
                   width={40}
                   height={40}
                   className="rounded-full"
                 />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-lg font-semibold">
-                  {details?.symbol ? details.symbol[0] : 'T'}
+                  {details?.symbol ? details.symbol[0] : "T"}
                 </div>
               )}
               <div>
                 <CardTitle>Information</CardTitle>
-                {details?.symbol && <CardDescription>{details.symbol}</CardDescription>}
+                {details?.symbol && (
+                  <CardDescription>{details.symbol}</CardDescription>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -271,16 +334,26 @@ export default function TokenPage() {
                 <>
                   <p className="text-sm">
                     <strong className="text-muted-foreground">Address:</strong>
-                    <span className="font-mono block break-all" title={details.address}>{details.address}</span>
+                    <span
+                      className="font-mono block break-all"
+                      title={details.address}
+                    >
+                      {details.address}
+                    </span>
                   </p>
                   {details.info?.description && (
                     <p className="text-sm">
-                      <strong className="text-muted-foreground">Description:</strong> {details.info?.description}
+                      <strong className="text-muted-foreground">
+                        Description:
+                      </strong>{" "}
+                      {details.info?.description}
                     </p>
                   )}
                 </>
               ) : (
-                <p className="text-muted-foreground">Token details could not be loaded.</p>
+                <p className="text-muted-foreground">
+                  Token details could not be loaded.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -293,15 +366,29 @@ export default function TokenPage() {
               {pairs.length > 0 ? (
                 <div className="space-y-2">
                   {pairs.map((pair) => (
-                    <div className="text-sm" key={pair.pair?.address ?? Math.random().toString(36).substring(2, 15)}>
+                    <div
+                      className="text-sm"
+                      key={
+                        pair.pair?.address ??
+                        Math.random().toString(36).substring(2, 15)
+                      }
+                    >
                       <div className="flex justify-between items-start">
-                        <strong className="text-muted-foreground">{pair.exchange?.name || 'Unknown Exchange'}</strong>
+                        <strong className="text-muted-foreground">
+                          {pair.exchange?.name || "Unknown Exchange"}
+                        </strong>
                         <span className="text-xs text-muted-foreground">
-                          Vol: ${parseFloat(pair.volume || '0').toLocaleString()} | Liq: ${parseFloat(pair.liquidity || '0').toLocaleString()}
+                          Vol: $
+                          {parseFloat(pair.volume || "0").toLocaleString()} |
+                          Liq: $
+                          {parseFloat(pair.liquidity || "0").toLocaleString()}
                         </span>
                       </div>
-                      <span className="font-mono block break-all text-xs" title={pair.pair?.address || ''}>
-                        {pair.pair?.address || ''}
+                      <span
+                        className="font-mono block break-all text-xs"
+                        title={pair.pair?.address || ""}
+                      >
+                        {pair.pair?.address || ""}
                       </span>
                     </div>
                   ))}
