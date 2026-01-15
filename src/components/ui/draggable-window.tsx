@@ -16,6 +16,7 @@ interface DraggableWindowProps {
   minHeight?: number;
   maxWidth?: number;
   maxHeight?: number;
+  hideHeader?: boolean;
 }
 
 export function DraggableWindow({
@@ -30,6 +31,7 @@ export function DraggableWindow({
   minHeight = 200,
   maxWidth,
   maxHeight,
+  hideHeader = false,
 }: DraggableWindowProps) {
   const [position, setPosition] = React.useState(defaultPosition);
   const [size, setSize] = React.useState(defaultSize);
@@ -178,22 +180,35 @@ export function DraggableWindow({
         flexDirection: "column",
       }}
     >
-      {/* Header with drag handle */}
-      <div
-        ref={headerRef}
-        onMouseDown={handleMouseDown}
-        className="flex items-center justify-between border-b px-5 py-3 cursor-move rounded-t-2xl flex-shrink-0"
-      >
-        <div className="font-semibold text-sm">{title || "Window"}</div>
-        <button
-          onClick={onClose}
-          className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          style={{ pointerEvents: "auto" }}
+      {/* Header with drag handle - only show if title exists and hideHeader is false */}
+      {!hideHeader && title && (
+        <div
+          ref={headerRef}
+          onMouseDown={handleMouseDown}
+          className="flex items-center justify-between border-b px-5 py-3 cursor-move rounded-t-2xl flex-shrink-0"
         >
-          <XIcon className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </button>
-      </div>
+          <div className="font-semibold text-sm">{title}</div>
+          <button
+            onClick={onClose}
+            className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            style={{ pointerEvents: "auto" }}
+          >
+            <XIcon className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </button>
+        </div>
+      )}
+      
+      {/* Minimal drag handle when header is hidden */}
+      {(hideHeader || !title) && (
+        <div
+          ref={headerRef}
+          onMouseDown={handleMouseDown}
+          className="flex justify-center py-2 cursor-move"
+        >
+          <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+        </div>
+      )}
 
       {/* Content */}
       <div
